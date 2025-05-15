@@ -32,6 +32,11 @@
 Adafruit_LSM9DS0 lsm = Adafruit_LSM9DS0(1000);  // Use I2C, ID #1000
 
 
+const int NUM_READINGS = 10;
+float accelZReadings[NUM_READINGS];
+float gyroYReadings[NUM_READINGS];
+int readingIndex = 0;
+int readingCount = 0;
 /* Or, use Hardware SPI:
   SCK -> SPI CLK
   SDA -> SPI MOSI
@@ -163,6 +168,11 @@ void setup(void)
   
   /* Setup the sensor gain and integration time */
   configureSensor();
+
+  for (int i = 0; i < NUM_READINGS; i++) {
+    accelZReadings[i] = 0.0;
+    gyroYReadings[i] = 0.0;
+  }
   
   /* We're ready to go! */
   Serial.println("");
@@ -176,34 +186,65 @@ void setup(void)
 /**************************************************************************/
 void loop(void) 
 {  
-  // /* Get a new sensor event */ 
-  
   sensors_event_t accel, mag, gyro, temp;
 
   lsm.getEvent(&accel, &mag, &gyro, &temp); 
+
+  // Store the current readings
+  accelZReadings[readingIndex] = accel.acceleration.z;
+  gyroYReadings[readingIndex] = gyro.gyro.y;
+
+  readingIndex++;
+  if (readingIndex >= NUM_READINGS) {
+    readingIndex = 0;
+  }
+
+  if (readingCount < NUM_READINGS) {
+    readingCount++;
+  }
+
+  // Calculate sums
+  float sumAccelZ = 0;
+  float sumGyroY = 0;
+  for (int i = 0; i < readingCount; i++) {
+    sumAccelZ += accelZReadings[i];
+    sumGyroY += gyroYReadings[i];
+  }
+
+  // Calculate averages
+  float avgAccelZ = 0;
+  float avgGyroY = 0;
+  if (readingCount > 0) {
+    avgAccelZ = sumAccelZ / readingCount;
+    avgGyroY = sumGyroY / readingCount;
+  }
 
   // print out accelleration data
   Serial.print(">");
   Serial.print("Accel_X:"); Serial.print(accel.acceleration.x); Serial.print(",");
   Serial.print("Accel_y:"); Serial.print(accel.acceleration.y);       Serial.print(",");
-  Serial.print("Accel_z:"); Serial.print(accel.acceleration.z);     Serial.print(",");//Serial.println("  \tm/s^2");
+  Serial.print("Accel_z:"); Serial.print(accel.acceleration.z);     Serial.print(",");
 
   // print out magnetometer data
   Serial.print("Magn_X:"); Serial.print(mag.magnetic.x);Serial.print(",");// Serial.print(" ");
   Serial.print("Magn_Y:"); Serial.print(mag.magnetic.y);       Serial.print(",");//Serial.print(" ");
-  Serial.print("Magn_Z:"); Serial.print(mag.magnetic.z);     Serial.print(",");//Serial.println("  \tuT");
+  Serial.print("Magn_Z:"); Serial.print(mag.magnetic.z);     Serial.print(",");
   
   // print out gyroscopic data
   Serial.print("Gyro_X:"); Serial.print(gyro.gyro.x); Serial.print(",");//Serial.print(" ");
   Serial.print("Gyro_Y:"); Serial.print(gyro.gyro.y);Serial.print(",");//       Serial.print(" ");
-  Serial.print("Gyro_Z:"); Serial.print(gyro.gyro.z); Serial.println();//    Serial.println("  \trad/s");
+  Serial.print("Gyro_Z:"); Serial.print(gyro.gyro.z); Serial.print(",");//    Serial.println("  \trad/s");
+
+  // Print averages
+  Serial.print("AvgAccelZ:"); Serial.print(avgAccelZ); Serial.print(",");
+  Serial.print("AvgGyroY:"); Serial.print(avgGyroY); Serial.println();
 
   // print out temperature data
   //Serial.print("Temp: "); Serial.print(temp.temperature); Serial.println(" *C");
 
   Serial.println("**********************\n");
 
-  delay(100);
+  delay(10);
 }
 
 
